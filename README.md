@@ -38,7 +38,7 @@ Aktuell erfolgt die Anbindung zunächst über den **Client Socket**. Dieser arbe
 5. [Software-Installation](#5-software-installation)
 6. [Einrichten der Instanzen in IP-Symcon](#6-einrichten-der-instanzen-in-ip-symcon)
 7. [Statusvariablen und Profile](#7-statusvariablen-und-profile)
-8. [WebFront](#8-webfront)
+8. [Visualisierung](#8-visualisierung)
 9. [PHP-Befehlsreferenz](#9-php-befehlsreferenz)
 10. [Lizenz-Haftung](#10-lizenz-haftung)
 11. [Screenshots](#11-screenshots)
