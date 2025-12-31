@@ -1,4 +1,7 @@
-# ComfoAirManager in Varianten CS und SP
+# ComfoAirManager
+
+[![IP-Symcon is awesome!](https://img.shields.io/badge/IP--Symcon-8.1-blue.svg)](https://www.symcon.de)
+![License](https://img.shields.io/badge/license-Apache2.0-blue.svg)
 
 IP-Symcon-Modul zur Steuerung und Überwachung von **ComfoAir Lüftungsanlagen**.  
 Das Modul ermöglicht unter anderem das Auslesen von Sensorwerten, die Steuerung der Lüftungsstufen, eine automatische Hitzesteuerung, die Nutzung von Wochenplänen sowie die Auswertung von Bypass- und Sommermodusstatus. Darüber hinaus werden Betriebsstunden, Filter- und Fehlerzustände erfasst und dargestellt.
@@ -13,6 +16,8 @@ Ebenso gilt mein Dank den Gemeinschaften der **IP-Symcon Community** sowie dem *
 
 - http://www.see-solutions.de/sonstiges/sonstiges.htm#Zehnder
 
+Mit Version 0.2 ist dieses Modul in Symcon zukunftsfähig bereits jetzt mit "IPSModuleStrict" ausgestattet. Dies stellt sicher, dass PHP Version >9.0 im Backend verwendet werden kann. Dies jedoch führt dazu, dass mindestens die Symcon Version 8.1 als Plattform verwendet wird.
+
 ### Zunächst die Frage: Warum?
 
 Viele der älteren ComfoAir-Anlagen lassen sich nicht ohne Weiteres in eine moderne Hausautomation integrieren. Laut Hersteller ist es bei diesen Geräten nicht möglich, die heute bei neueren Anlagen üblichen Umsetzer oder Gateways nachzurüsten – selbst nicht gegen Aufpreis. Genau daraus entstand der Anreiz, eine eigene Lösung zu entwickeln.
@@ -21,13 +26,13 @@ In der Vergangenheit habe ich über viele Jahre hinweg klassische PHP-Skripte in
 
 Bei der Modulentwicklung wurde besonderer Wert auf die **Zuverlässigkeit des Datenstroms** gelegt. Schreibkommandos werden gezielt auf ihr Antwortverhalten überwacht und bei Zeitüberschreitungen automatisch bis zu drei Mal erneut gesendet. Die bisherigen Tests zeigen, dass dieses Vorgehen zuverlässig funktioniert und die in IP-Symcon angezeigten Zustände – insbesondere die aktuelle Lüftungsstufe – konsistent und korrekt bleiben.
 
-Langfristig sind zwei Module mit identischem Funktionsumfang geplant, die sich jedoch an unterschiedliche I/O-Gateways anbinden lassen:
+Das Modul kann ab Version 0.2 über zwei unterschiedliche Gateways angebunden werden:
 
-- **ComfoAirManagerCS** für den Betrieb über ein *Client Socket*
+- für den Betrieb über ein *Client Socket*
 
-- **ComfoAirManagerSP** für den Betrieb über einen *Serial Port*
+- für den Betrieb über einen *Serial Port*
 
-Aktuell erfolgt die Anbindung zunächst über den **Client Socket**. Dieser arbeitet TCP/IP-basiert, sodass die Lüftungsanlage über einen geeigneten Umsetzer in das hausinterne Netzwerk eingebunden werden kann. Weitere Details dazu folgen in den nachfolgenden Abschnitten der Dokumentation.
+Die Standardanbindung ab Symcon Version 8.1 erfolgt über den **Client Socket**. Dieser arbeitet TCP/IP-basiert, sodass die Lüftungsanlage über einen geeigneten Umsetzer in das hausinterne Netzwerk eingebunden werden kann. Weitere Details dazu folgen in den nachfolgenden Abschnitten der Dokumentation. 
 
 ### Inhaltsverzeichnis
 
@@ -88,7 +93,8 @@ Die beschriebenen Grundeinstellungen wurden bisher ausschließlich über die Fer
 
 ### 3. Voraussetzungen
 
-- IP-Symcon ab Version 7.1
+- IP-Symcon ab Version 8.1 ist die Gatewayzuordnung manuell zu treffen
+- IP-Symcon ab Version 8.2 ist die Gatewayzuordnung vereinfacht über ein Auswahldialog möglich
 - Anschluss der Lüftungsanlage an das Netzwerk oder an den Server der IP-Symcon
 
 ### 4. Hardwareanschluss
@@ -113,12 +119,12 @@ Weitere wichtige Einstellungen finden sich im Bereich **Operating Settings**. Hi
 ### 5. Software-Installation
 
 * Unter "Kern Instanzen" in der Symcon-Konsole das Modul "Module" öffnen. Dann unten rechts auf dem großen + klicken. Darin die Modul Url eingeben: https://github.com/BugForgeNerd/ComfoAirManager
-  Anschließend im Symcon Objektbaum an beliebiger Stelle auf eine Kategorie rechts-klick "Objekt hinzufügen" und dann Instanz wählen. Dort dann im Schnellfilter "ComfoAirManagerCS"" raussuchen. Die I/O Instanz wird bei der Installation abgefragt. Dazu folgend mehr.
-* Über den Module Store das 'ComfoAirManagerCS'-Modul installieren. (kommt später)`
+  Anschließend im Symcon Objektbaum an beliebiger Stelle auf eine Kategorie rechts-klick "Objekt hinzufügen" und dann Instanz wählen. Dort dann im Schnellfilter "ComfoAirManager"" raussuchen. Die I/O Instanz wird bei der Installation abgefragt. Dazu folgend mehr.
+* Über den Module Store das 'ComfoAirManager'-Modul installieren. (kommt später)`
 
 ### 6. Einrichten der Instanzen in IP-Symcon
 
-Unter 'Instanz hinzufügen' kann das 'ComfoAirManagerCS'-Modul mithilfe des Schnellfilters gefunden werden. Die I/O Instanz stellt dem Modul die Datenschnittstelle zur Verfügung. Im Falle eines Clientsockets muss die Host IP des Umsetzers (bei mir ein Moxa-Modul) und dessen Port angegeben werden.
+Unter 'Instanz hinzufügen' kann das 'ComfoAirManager'-Modul mithilfe des Schnellfilters gefunden werden. Die I/O Instanz stellt dem Modul die Datenschnittstelle zur Verfügung. Im Falle eines Clientsockets muss die Host IP des Umsetzers (bei mir ein Moxa-Modul) und dessen Port angegeben werden. Ab Symcon Version 8.1 muss das Modul als Client-Socket oder Serial Port manuell eingebunden werden. Ab Symcon Version 8.2 werden die zwei vorgenannten Einbindungsmöglichkeiten in einem Auswahldialog vorgeschlagen.
 
 - Weitere Informationen zum Hinzufügen von Instanzen in der [Dokumentation der Instanzen](https://www.symcon.de/service/dokumentation/konzepte/instanzen/#Instanz_hinzufügen)
 

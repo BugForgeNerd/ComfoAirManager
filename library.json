@@ -4,9 +4,9 @@
     "author": "BugForgeNerd",
     "url": "https://github.com/BugForgeNerd/ComfoAirManager",
     "compatibility": {
-        "version": "7.1"
+        "version": "8.1"
     },
-    "version": "0.1",
+    "version": "0.2",
     "build": 0,
     "date": 1765697470
 }
