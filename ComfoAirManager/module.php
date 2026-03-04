@@ -10,7 +10,7 @@
  * - Gateway auf Vorhandensein überprüfen -> $this->SendDataToParent(json_encode
  * - 30.12.2025, 19:08:06 | TimerPool            | ComfoAirManager (PendingTimer): Warning: Socket ist nicht verbunden in /var/lib/symcon/modules/ComfoAirManager/ComfoAirManagerCS/module.php on line 623
  * - 
- * - 
+ * - Filterstatus erst zurücksetzen, wenn Ack gekommen ist
  * - Buffer-Handling optimieren. Aktuell: String-Puffer + strpos → alles in ProcessRxBuffer(). Neu: Array/Queue-Puffer + Chunk-Parser, der ACKs und Frames sauber 
  *     trennt. Vorteil: stabiler, weniger Risiko von Frame-Verschiebungen oder Stuffing-Fehlern.
  * - ACK-/Retry-Logik verbessern. Aktuell: einfacher Timer prüft alle PendingRequests. Neu: Statusobjekt pro Request (ackReceived, responseReceived, retryCount), 
@@ -300,6 +300,80 @@ class ComfoAirManager extends IPSModuleStrict
 				],
 			]
 		],
+		'Zeitverzoegerungen' => [
+			'key'               => 'Zeitverzoegerungen',
+			'description'       => 'Voreingestellte Zeitverzögerungen und Filterzähler',
+			'command_request'   => 0x00C9,
+			'command_response'  => 0x00CA,
+			'command_type'      => 'read',
+			'pollable'          => true,
+			'data' => [
+				1 => [
+					'variable' => 'BadEinVerzoegerung',
+					'name'     => 'ZV - Bad Einschaltverzögerung (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				],
+				2 => [
+					'variable' => 'BadAusVerzoegerung',
+					'name'     => 'ZV - Bad Ausschaltverzögerung (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				],
+				3 => [
+					'variable' => 'L1AusVerzoegerung',
+					'name'     => 'ZV - L1 Ausschaltverzögerung (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				],
+				4 => [
+					'variable' => 'StosslueftungDauer',
+					'name'     => 'ZV - Stosslüftung Dauer (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				],
+				5 => [
+					'variable' => 'FilterZaehlerWochen',
+					'name'     => 'ZV - Filterzähler (Wochen) Grenzwert',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => true
+				],
+				6 => [
+					'variable' => 'RFHochKurz',
+					'name'     => 'ZV - RF hoch Zeit kurz (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				],
+				7 => [
+					'variable' => 'RFHochLang',
+					'name'     => 'ZV - RF hoch Zeit lang (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				],
+				8 => [
+					'variable' => 'KuecheAusVerzoegerung',
+					'name'     => 'ZV - Küchenhaube Ausschaltverzögerung (Min)',
+					'type'     => 'integer',
+					'profile'  => '',
+					'default'  => false
+				]
+			]
+		],
+		'ResetFilter' => [
+			'key' => 'resetfilter',
+			'command_request'  => 0x00DB,
+			'command_response' => null, // nur ACK
+			'description'      => 'Filterzähler zurücksetzen',
+			'command_type'     => 'write',
+			'data'             => []
+		],
 	];
 
 	// Benötige eine neue Instanz und bevorzuge einen Serial Port bei der Erstellung
@@ -491,6 +565,9 @@ class ComfoAirManager extends IPSModuleStrict
 		}
 
 		$this->CreateWochenplan();
+		
+		// >>> FilterReset Script unterhalb des Moduls anlegen - als Taster nutzbar
+		$this->EnsureFilterResetScript();
 	}
 
 	/**
@@ -981,7 +1058,22 @@ class ComfoAirManager extends IPSModuleStrict
 							break;
 
 						case 'boolean':
-							$this->SetValue($info['variable'], $data[$byteIndex - 1] != 0);
+							$value = $data[$byteIndex - 1] != 0;
+							$this->SetValue($info['variable'], $value);
+							// Sichtbarkeit des Reset-Scripts steuern,
+							// wenn es sich um den Filterstatus handelt
+							if ($info['variable'] === 'stFilterOk') {
+								$scriptID = @IPS_GetObjectIDByIdent('FilterResetScript', $this->InstanceID);
+								if ($scriptID !== false) {
+									if ($value === true) {   // true = Filter voll
+										IPS_SetHidden($scriptID, false);
+										$this->SendDebug('FilterResetScript','Script sichtbar (Filter voll)',0);
+									} else {                 // false = Filter OK
+										IPS_SetHidden($scriptID, true);
+										$this->SendDebug('FilterResetScript','Script versteckt (Filter OK)',0);
+									}
+								}
+							}
 							break;
 
 						case 'string':
@@ -1282,9 +1374,7 @@ class ComfoAirManager extends IPSModuleStrict
 				break;
 			case 'Hitzesteuerung':
 				$Value = (bool)$Value;
-
 				$this->SetValue('Hitzesteuerung', $Value);
-
 				if ($Value) {
 					// EIN → Timer wieder starten
 					$this->SetTimerInterval('HeatControlTimer',self::HEAT_CONTROL_INTERVAL);
@@ -2047,6 +2137,53 @@ class ComfoAirManager extends IPSModuleStrict
 			}
 		}
 		return $actionID !== null ? $actionID + 1 : null;  // Es wird die ID verwendet. 0 ist Aus also 1 und so weiter, daher +1
+	}
+
+	public function ResetFilter(): bool
+	{
+		$this->SendDebug('ResetFilter', 'Sende 0x00DB mit Byte4=1', 0);
+
+		try {
+			// Byte4 = 1, alle anderen Bytes = 0 (dürfen NICHT verändert werden)
+			$this->SendCommand(0x00DB, [0, 0, 0, 1]);
+
+			// Direkt nach ACK den Filterstatus abrufen, um den Dispatch auszulösen
+			$this->SendDebug('ResetFilter', 'Abfrage Filterstatus nach Reset', 0);
+			$this->SendCommand(0x00D9, []); // 0x00D9 = "Störungen", Filterstatus abfragen
+			
+			return true;
+		} catch (\Throwable $e) {
+			$this->SendDebug('ResetFilter', 'Fehler: ' . $e->getMessage(), 0);
+			return false;
+		}
+	}
+
+	private function EnsureFilterResetScript(): void
+	{
+		$ident = 'FilterResetScript';
+		$scriptID = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+
+		if ($scriptID === false) {
+
+			$scriptID = IPS_CreateScript(0);
+			IPS_SetParent($scriptID, $this->InstanceID);
+			IPS_SetIdent($scriptID, $ident);
+			IPS_SetName($scriptID, 'Filter zurücksetzen');
+			IPS_SetHidden($scriptID, true); // standardmäßig unsichtbar
+
+			$content = "<?php\n"
+				. "\$instanceID = IPS_GetParent(\$_IPS['SELF']);\n"
+				. "\$result = CAMCS_ResetFilter(\$instanceID);\n\n"
+				. "if (\$result) {\n"
+				. "    echo \"Filter-Reset wurde gesendet.\";\n"
+				. "} else {\n"
+				. "    echo \"Fehler beim Senden des Reset-Kommandos.\";\n"
+				. "}\n";
+
+			IPS_SetScriptContent($scriptID, $content);
+
+			$this->SendDebug('EnsureFilterResetScript', 'Reset-Script erstellt', 0);
+		}
 	}
 
 }
