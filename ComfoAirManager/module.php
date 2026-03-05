@@ -2109,7 +2109,7 @@ class ComfoAirManager extends IPSModuleStrict
 	 * - Gibt die entsprechende Stufe zurück (1-basierend, 0 = Aus).
 	 *
 	 * Rückgabewert:
-	 *   int|null → aktuelle Stufe (1–4) oder null, wenn kein Wochenplan aktiv.
+	 *   int|null - aktuelle Stufe (1–4) oder null, wenn kein Wochenplan aktiv.
 	 */
 	protected function GetStageFromSchedule(): ?int
 	{
@@ -2139,6 +2139,23 @@ class ComfoAirManager extends IPSModuleStrict
 		return $actionID !== null ? $actionID + 1 : null;  // Es wird die ID verwendet. 0 ist Aus also 1 und so weiter, daher +1
 	}
 
+	/**
+	 * Setzt den Filterzähler der Lüftungsanlage zurück.
+	 *
+	 * - Sendet das Write-Kommando 0x00DB mit gesetztem Byte4 (=1).
+	 * - Dadurch wird der interne Filter-Stundenzähler der Anlage zurückgesetzt.
+	 * - Anschließend wird sofort der Status "Störungen" (0x00D9) abgefragt,
+	 *   damit der neue Filterstatus (stFilterOk) direkt aktualisiert wird.
+	 *
+	 * Hintergrund:
+	 *   Der Filterstatus wird normalerweise nur im AutoRead-Zyklus abgefragt.
+	 *   Durch die direkte Abfrage wird verhindert, dass der Benutzer bis zur
+	 *   nächsten planmäßigen Abfrage warten muss.
+	 *
+	 * Rückgabewert:
+	 *   bool - true wenn das Kommando erfolgreich gesendet wurde,
+	 *          false bei Fehlern (Exception).
+	 */
 	public function ResetFilter(): bool
 	{
 		$this->SendDebug('ResetFilter', 'Sende 0x00DB mit Byte4=1', 0);
@@ -2158,6 +2175,25 @@ class ComfoAirManager extends IPSModuleStrict
 		}
 	}
 
+	/**
+	 * Stellt sicher, dass das Script "Filter zurücksetzen" unterhalb der
+	 * Modulinstanz existiert.
+	 *
+	 * - Prüft, ob bereits ein Script mit Ident "FilterResetScript" vorhanden ist.
+	 * - Falls nicht, wird ein neues Script erstellt.
+	 * - Das Script ruft CAMCS_ResetFilter() für die aktuelle Instanz auf.
+	 * - Das Script wird standardmäßig versteckt angelegt.
+	 *
+	 * Sichtbarkeit:
+	 *   Die Sichtbarkeit des Scripts wird dynamisch über den Filterstatus
+	 *   (Variable stFilterOk) im Dispatch gesteuert:
+	 *   - sichtbar - wenn Filter voll
+	 *   - versteckt - wenn Filter OK
+	 *
+	 * Zweck:
+	 *   Benutzer können den Filter bequem über die WebFront zurücksetzen,
+	 *   ohne ein eigenes Script erstellen zu müssen.
+	 */
 	private function EnsureFilterResetScript(): void
 	{
 		$ident = 'FilterResetScript';

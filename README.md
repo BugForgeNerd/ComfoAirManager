@@ -3,6 +3,16 @@
 [![IP-Symcon is awesome!](https://img.shields.io/badge/IP--Symcon-8.1-blue.svg)](https://www.symcon.de)
 ![License](https://img.shields.io/badge/license-Apache2.0-blue.svg)
 
+## Features
+
+* Auslesen von Temperaturen, Lüftungsstufen, Betriebsstunden und Gerätestatus
+* Steuerung von Lüftungsstufen und Komforttemperatur
+* Wochenplan für automatische Lüftungssteuerung
+* Hitzeschutzlogik zum automatischen Abschalten der Lüftung
+* Automatische Geräteabfragen (AutoRead)
+* Filterüberwachung mit optionalem Filter-Reset
+* Integration in das Symcon WebFront
+
 IP-Symcon-Modul zur Steuerung und Überwachung von **ComfoAir Lüftungsanlagen**.  
 Das Modul ermöglicht unter anderem das Auslesen von Sensorwerten, die Steuerung der Lüftungsstufen, eine automatische Hitzesteuerung, die Nutzung von Wochenplänen sowie die Auswertung von Bypass- und Sommermodusstatus. Darüber hinaus werden Betriebsstunden, Filter- und Fehlerzustände erfasst und dargestellt.
 
@@ -90,6 +100,8 @@ Die beschriebenen Grundeinstellungen wurden bisher ausschließlich über die Fer
 * Verwaltung von Statusvariablen und IPS-Profilen
 * Unterstützt automatische Abfrageintervalle (AutoRead)
 * Integration in WebFront über Statusvariablen und Profile
+* Auslesen der Gerätegruppe **„Zeitverzögerungen“** der Lüftungsanlage
+* Filterüberwachung mit optionalem **Reset-Script im Objektbaum**
 
 ### 3. Voraussetzungen
 
@@ -147,6 +159,9 @@ Im aktiven Betrieb signalisiert die Statusvariable **„Lüftung aus wegen Hitze
 
 Die aus der Lüftungsanlage auslesbaren Informationen sind in mehrere **Gruppen** unterteilt, wobei jede Gruppe ihre Daten in einer gemeinsamen Abfrage ermittelt. Über die jeweiligen Checkboxen kann festgelegt werden, welche Daten als **Statusvariablen** unterhalb des Moduls in IP-Symcon angezeigt werden sollen. Ist für eine Gruppe ein Intervall definiert, werden die entsprechenden Daten regelmäßig und automatisch von der Lüftungsanlage abgefragt.
 
+Eine zusätzliche Abfragegruppe stellt die **Zeitverzögerungen der Lüftungsanlage** bereit.  
+Diese Parameter werden von der Anlage intern für verschiedene Regelungsfunktionen verwendet und können über das Modul ebenfalls ausgelesen werden. Die entsprechenden Werte werden – sofern die Gruppe aktiviert ist – automatisch als Statusvariablen unterhalb des Moduls angelegt und regelmäßig aktualisiert.
+
 Einige Variablen sind bereits bei der **Installation des Moduls standardmäßig aktiviert**. Dies betrifft insbesondere Variablen, die grundlegende Betriebszustände liefern oder als **Schreibvariablen** fungieren und somit eine Interaktion mit der IP-Symcon-Benutzeroberfläche ermöglichen. Diese Variablen können bewusst **nicht deaktiviert** werden, da sie für die korrekte Funktion und Stabilität des Moduls erforderlich sind. Ein Abschalten dieser Variablen könnte zu Fehlfunktionen im Modulbetrieb führen.
 
 ### 7. Statusvariablen und Profile
@@ -174,6 +189,22 @@ Sollten **wichtige Variablen fehlen**, freue ich mich über entsprechende Rückm
 | teT3_Abluft           | float   | Ablufttemperatur T3        |
 | teT4_Fortluft         | float   | Fortlufttemperatur T4      |
 | LueftungAusWegenHitze | boolean | Hitzestopp aktiv           |
+
+#### Filterstatus und Filter-Reset
+
+Die Lüftungsanlage überwacht intern den Zustand der eingesetzten Filter.  
+Der aktuelle Status wird über die Variable **„stFilterOk“** dargestellt:
+
+- **true** - Filter in Ordnung  
+- **false** - Filterwechsel erforderlich
+
+Sobald die Anlage meldet, dass der Filter gewechselt werden muss, wird automatisch ein **Script „Filter zurücksetzen“** unterhalb der Modulinstanz angelegt und sichtbar gemacht.
+
+Dieses Script sendet das entsprechende Reset-Kommando an die Lüftungsanlage und setzt den internen Filterzähler zurück.
+
+Solange der Filterstatus **„ok“** ist, bleibt dieses Script automatisch **ausgeblendet**, um die Oberfläche übersichtlich zu halten. Erst wenn ein Filterwechsel erforderlich ist, wird die Reset-Funktion sichtbar.
+
+Der eigentliche physische Filterwechsel muss selbstverständlich **manuell an der Lüftungsanlage durchgeführt werden**, bevor der Reset ausgelöst wird.
 
 #### Profile
 
@@ -224,8 +255,6 @@ https://www.apache.org/licenses/LICENSE-2.0
 - Das Projekt wird **ohne Gewähr und ohne Garantie** bereitgestellt
 
 - Die Autoren übernehmen **keine Haftung** für Schäden, die aus der Nutzung entstehen
-
-
 
 ## Wichtiger Sicherheits- und Haftungshinweis
 
