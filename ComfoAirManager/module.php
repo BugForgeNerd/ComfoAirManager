@@ -552,14 +552,16 @@ class ComfoAirManager extends IPSModuleStrict
 		$this->SendDebug('HeatControl', 'Value insideVar: ' . $insideVar, 0);
 		$this->SendDebug('HeatControl', 'Value outsideVar: ' . $outsideVar, 0);
 
-		// 0 = Root-Objekt, 1 = Ungültige Objekt bzw. nicht ausgewählt. Der < 10000 Check ist gut, da die gültigen IDs bei uns immer mit 10000 anfangen.
-		// oder IP_VariableExists prüfen
+		// Fix fehlende Zuweisung der Innen- und Außentemperatur
 		$enabled = $this->GetValue('Hitzesteuerung');
-		if ($enabled && $insideVar >= 10000 && $outsideVar >= 10000) {
+		if (
+			$enabled &&
+			@IPS_VariableExists($insideVar) &&
+			@IPS_VariableExists($outsideVar)
+		) {
 			$this->SetTimerInterval('HeatControlTimer', self::HEAT_CONTROL_INTERVAL);
 			$this->SendDebug('HeatControl', 'Timer aktiv', 0);
 		} else {
-			// Sensoren fehlen → Timer aus
 			$this->SetTimerInterval('HeatControlTimer', 0);
 			$this->SendDebug('HeatControl', 'Timer deaktiviert (Sensoren fehlen)', 0);
 		}
@@ -993,7 +995,9 @@ class ComfoAirManager extends IPSModuleStrict
 						continue;
 					}
 
-					$vid = @IPS_GetObjectIDByIdent($info['variable'], $this->InstanceID);
+					//$vid = @IPS_GetObjectIDByIdent($info['variable'], $this->InstanceID);
+					// Fix Review
+					$vid = $this->GetOwnIDForIdent($info['variable']);
 					if ($vid === false) {
 						continue; // Variable existiert nicht
 					}
@@ -1063,7 +1067,9 @@ class ComfoAirManager extends IPSModuleStrict
 							// Sichtbarkeit des Reset-Scripts steuern,
 							// wenn es sich um den Filterstatus handelt
 							if ($info['variable'] === 'stFilterOk') {
-								$scriptID = @IPS_GetObjectIDByIdent('FilterResetScript', $this->InstanceID);
+								//$scriptID = @IPS_GetObjectIDByIdent('FilterResetScript', $this->InstanceID);
+								// Fix Review
+								$scriptID = $this->GetOwnIDForIdent('FilterResetScript');
 								if ($scriptID !== false) {
 									if ($value === true) {   // true = Filter voll
 										IPS_SetHidden($scriptID, false);
@@ -1238,15 +1244,25 @@ class ComfoAirManager extends IPSModuleStrict
 
 				// Variable laut Konfiguration deaktiviert
 				if (!($config[$groupName]['variables'][$ident] ?? false)) {
-					if (@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
+					//if (@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
+					//	$this->SendDebug('RegisterModuleVariables', "Entferne Variable $ident (deaktiviert)", 0);
+					//	IPS_DeleteVariable(IPS_GetObjectIDByIdent($ident, $this->InstanceID));
+					//}
+					// Fix Review
+					$vid = $this->GetOwnIDForIdent($ident);
+					if ($vid > 0 && @IPS_VariableExists($vid)) {
 						$this->SendDebug('RegisterModuleVariables', "Entferne Variable $ident (deaktiviert)", 0);
-						IPS_DeleteVariable(IPS_GetObjectIDByIdent($ident, $this->InstanceID));
+						IPS_DeleteVariable($vid);
 					}
 					continue;
 				}
 
 				// Variable existiert bereits
-				if (@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
+				//if (@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
+				//	continue;
+				//}
+				// Fix Review
+				if ($this->GetOwnIDForIdent($ident) !== false) {
 					continue;
 				}
 /**	// bei Verwendung der Standardprofile
@@ -1320,9 +1336,15 @@ class ComfoAirManager extends IPSModuleStrict
 
 		foreach ($this->Commands[$groupName]['data'] as $info) {
 			$ident = $info['variable'];
-			if (@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
+			//if (@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
+			//	$this->SendDebug(__FUNCTION__, "Entferne Variable $ident (Gruppe deaktiviert)", 0);
+			//	IPS_DeleteVariable(IPS_GetObjectIDByIdent($ident, $this->InstanceID));
+			//}
+			// Fix Review
+			$vid = $this->GetOwnIDForIdent($ident);
+			if ($vid > 0 && @IPS_VariableExists($vid)) {
 				$this->SendDebug(__FUNCTION__, "Entferne Variable $ident (Gruppe deaktiviert)", 0);
-				IPS_DeleteVariable(IPS_GetObjectIDByIdent($ident, $this->InstanceID));
+				IPS_DeleteVariable($vid);
 			}
 		}
 	}
@@ -1880,7 +1902,9 @@ class ComfoAirManager extends IPSModuleStrict
 		$parentID = $this->InstanceID;
 
 		// Prüfen, ob schon vorhanden (über ObjectIDByIdent!)
-		$existingID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $parentID);
+		//$existingID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $parentID);
+		// Fix Review
+		$existingID = $this->GetOwnIDForIdent('HeatControlSchedule');
 		if ($existingID !== false) {
 			return;
 		}
@@ -1979,19 +2003,29 @@ class ComfoAirManager extends IPSModuleStrict
 			$this->SendDebug('HeatControl', 'Deaktiviert durch Benutzer', 0);
 			return;
 		}
-
-		$insideVar = $this->ReadPropertyInteger('InsideTempVarID');
-		$outsideVar = $this->ReadPropertyInteger('OutsideTempVarID');
 		
-		// zunächst schauen, ob Benutzer Variablen im Konfigurationsformular ausgewählt hat.
-		if ($insideVar < 10000 || $outsideVar < 10000) {
-			$this->SendDebug('HeatControl', 'Abbruch: Sensoren nicht konfiguriert', 0);
+		// Fix fehlende Zuweisung Innen- und Aussentemperatur
+		$insideVar  = $this->ReadPropertyInteger('InsideTempVarID');
+		$outsideVar = $this->ReadPropertyInteger('OutsideTempVarID');
+		if (
+			!@IPS_VariableExists($insideVar) ||
+			!@IPS_VariableExists($outsideVar)
+		) {
+			$this->SetValue('LueftungAusWegenHitze', false);
+			$this->SendDebug('HeatControl', 'Abbruch: Sensoren nicht konfiguriert oder ungültig', 0);
 			return;
 		}
-
-		$inside  = GetValueFloat($insideVar);
-		$outside = GetValueFloat($outsideVar);
-		$comfort = GetValueFloat($this->GetIDForIdent('teKomfortTemperatur'));
+		//$comfortVar = @$this->GetIDForIdent('teKomfortTemperatur');
+		// Fix Review
+		$comfortVar = $this->GetOwnIDForIdent('teKomfortTemperatur');
+		if ($comfortVar === false || !@IPS_VariableExists($comfortVar)) {
+			$this->SetValue('LueftungAusWegenHitze', false);
+			$this->SendDebug('HeatControl', 'Abbruch: Komforttemperatur fehlt', 0);
+			return;
+		}
+		$inside  = (float)GetValue($insideVar);
+		$outside = (float)GetValue($outsideVar);
+		$comfort = (float)GetValue($comfortVar);
 		
 		// testen
 		//$inside  = 27.0;
@@ -2030,7 +2064,9 @@ class ComfoAirManager extends IPSModuleStrict
 		$this->WriteAttributeInteger('HeatControlPrevStage', $currentStage);
 
 		// Wochenplan-Status sichern
-		$eventID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $this->InstanceID);
+		//$eventID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $this->InstanceID);
+		// Fix Review
+		$eventID = $this->GetOwnIDForIdent('HeatControlSchedule');
 		if ($eventID !== false) {
 			$wasActive = IPS_GetEvent($eventID)['EventActive'];
 			$this->WriteAttributeBoolean('HeatControlPrevScheduleActive', $wasActive);
@@ -2068,7 +2104,9 @@ class ComfoAirManager extends IPSModuleStrict
 		$this->SetValue('LueftungAusWegenHitze', false);
 
 		// Wochenplan ggf. wieder aktivieren 
-		$eventID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $this->InstanceID);
+		//$eventID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $this->InstanceID);
+		// Fix Review
+		$eventID = $this->GetOwnIDForIdent('HeatControlSchedule');
 		$scheduleWasActive = $this->ReadAttributeBoolean('HeatControlPrevScheduleActive');
 		if ($scheduleWasActive && $eventID !== false) {
 			IPS_SetEventActive($eventID, true);
@@ -2114,7 +2152,9 @@ class ComfoAirManager extends IPSModuleStrict
 	protected function GetStageFromSchedule(): ?int
 	{
 		$parentID = $this->InstanceID;
-		$eventID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $parentID);
+		//$eventID = @IPS_GetObjectIDByIdent('HeatControlSchedule', $parentID);
+		// Fix Review
+		$eventID = $this->GetOwnIDForIdent('HeatControlSchedule');
 		if ($eventID === false || !IPS_GetEvent($eventID)['EventActive']) {
 			return null;
 		}
@@ -2197,7 +2237,9 @@ class ComfoAirManager extends IPSModuleStrict
 	private function EnsureFilterResetScript(): void
 	{
 		$ident = 'FilterResetScript';
-		$scriptID = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+		//$scriptID = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+		// Fix Review
+		$scriptID = @$this->GetIDForIdent($ident);
 
 		if ($scriptID === false) {
 
@@ -2220,6 +2262,23 @@ class ComfoAirManager extends IPSModuleStrict
 
 			$this->SendDebug('EnsureFilterResetScript', 'Reset-Script erstellt', 0);
 		}
+	}
+	
+	/**
+	 * Liefert die Objekt-ID eines eigenen Kindobjekts anhand seines Identifiers.
+	 *
+	 * @param string $ident
+	 * @return int|false
+	 */
+	private function GetOwnIDForIdent(string $ident): int|false
+	{
+		$id = @$this->GetIDForIdent($ident);
+
+		if ($id <= 0) {
+			return false;
+		}
+
+		return $id;
 	}
 
 }

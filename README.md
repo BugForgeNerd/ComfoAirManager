@@ -155,6 +155,32 @@ Die **Hitzesteuerung** kann optional genutzt werden. Sind die beiden erforderlic
 
 Im aktiven Betrieb signalisiert die Statusvariable **„Lüftung aus wegen Hitze“**, ob die Hitzesteuerung eine Übertemperatur erkannt und die Lüftungsanlage entsprechend abgeschaltet bzw. stark reduziert hat. So ist jederzeit nachvollziehbar, ob ein Eingriff durch die Hitzesteuerung erfolgt ist.
 
+
+#### Funktionsweise der Hitzesteuerung
+
+Die Hitzesteuerung dient dazu, zu verhindern, dass sich das Gebäude bei hohen Außentemperaturen zusätzlich aufheizt. Dabei wird die Lüftungsanlage nicht vollständig abgeschaltet, sondern auf die niedrigstmögliche Lüftungsstufe reduziert.
+
+Die Hitzesteuerung greift nur dann ein, wenn **alle folgenden Bedingungen gleichzeitig erfüllt sind**:
+
+1. Die Variable **„Hitzesteuerung“** ist aktiviert
+2. Eine gültige Innen- und Außentemperatur wurde im Modul zugewiesen
+3. Die aktuelle Innentemperatur liegt **über** der eingestellten Komforttemperatur
+4. Die Außentemperatur liegt **über** der aktuellen Innentemperatur
+
+Beispiel:
+
+| Komforttemperatur | Innentemperatur | Außentemperatur | Ergebnis |
+| ----------------- | ---------------- | ---------------- | --------- |
+| 22 °C             | 24 °C            | 31 °C            | Hitzeschutz aktiv |
+| 22 °C             | 24 °C            | 21 °C            | Hitzeschutz inaktiv |
+| 22 °C             | 21 °C            | 35 °C            | Hitzeschutz inaktiv |
+
+Wird eine Übertemperatur erkannt, reduziert das Modul die Lüftungsanlage automatisch auf die niedrigste Lüftungsstufe („Aus“ bzw. nahezu ausgeschaltet). Zusätzlich wird ein eventuell aktiver Wochenplan temporär deaktiviert, damit dieser die Hitzesteuerung nicht überschreibt.
+
+Sobald mindestens eine der oben genannten Bedingungen nicht mehr erfüllt ist, wird die normale Lüftungssteuerung automatisch wiederhergestellt. War zuvor ein Wochenplan aktiv, wird dieser ebenfalls automatisch wieder aktiviert.
+
+Die Prüfung erfolgt automatisch alle 15 Minuten.
+
 Über die Checkbox **„Automatisches Auslesen aktiv“** kann global festgelegt werden, ob die nachfolgenden Datenabfragegruppen ausgeführt werden sollen. Diese Funktion dient als zentraler Schalter, um sämtliche automatischen Abfragen temporär zu deaktivieren, ohne die individuell konfigurierten Abfrageintervalle der einzelnen Gruppen zu verlieren oder neu einstellen zu müssen.
 
 Die aus der Lüftungsanlage auslesbaren Informationen sind in mehrere **Gruppen** unterteilt, wobei jede Gruppe ihre Daten in einer gemeinsamen Abfrage ermittelt. Über die jeweiligen Checkboxen kann festgelegt werden, welche Daten als **Statusvariablen** unterhalb des Moduls in IP-Symcon angezeigt werden sollen. Ist für eine Gruppe ein Intervall definiert, werden die entsprechenden Daten regelmäßig und automatisch von der Lüftungsanlage abgefragt.
